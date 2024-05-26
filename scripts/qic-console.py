@@ -450,30 +450,39 @@ def create_ssh_key(key_name, key_type, passphrase):
 
 def list_tmate_sessions():
     try:
-        result = subprocess.run(["tmate", "list-sessions"], capture_output=True, text=True)
+        result = subprocess.run(["tmate", "-S", "/tmp/tmate.sock", "list-sessions"], capture_output=True, text=True)
         if result.returncode != 0:
-            return "Failed to list tmate sessions: " + result.stderr
+            return f"Failed to list tmate sessions: {result.stderr}"
         return result.stdout.strip()
     except Exception as e:
         return f"Failed to list tmate sessions: {e}"
 
-def terminate_tmate_session(session_id):
-    try:
-        result = subprocess.run(["tmate", "kill-session", "-t", session_id], capture_output=True, text=True)
-        if result.returncode != 0:
-            return "Failed to terminate tmate session: " + result.stderr
-        return f"Terminated tmate session '{session_id}'."
-    except Exception as e:
-        return f"Failed to terminate tmate session: {e}"
-
 def terminate_all_tmate_sessions():
     try:
-        result = subprocess.run(["tmate", "kill-server"], capture_output=True, text=True)
+        result = subprocess.run(["pgrep", "-f", "tmate"], capture_output=True, text=True)
         if result.returncode != 0:
-            return "Failed to terminate all tmate sessions: " + result.stderr
-        return "Terminated all tmate sessions."
+            return f"Failed to list tmate processes: {result.stderr}"
+        
+        pids = result.stdout.strip().split("\n")
+        for pid in pids:
+            if pid:
+                subprocess.run(["kill", "-9", pid], capture_output=True, text=True)
+        
+        return "All tmate sessions terminated."
     except Exception as e:
-        return f"Failed to terminate all tmate sessions: {e}"
+        return f"Failed to terminate tmate sessions: {e}"
+
+def terminate_tmate_session(session_id):
+    try:
+        if session_id:
+            result = subprocess.run(["tmate", "-S", "/tmp/tmate.sock", "kill-session", "-t", session_id], capture_output=True, text=True)
+        else:
+            result = subprocess.run(["tmate", "-S", "/tmp/tmate.sock", "kill-session"], capture_output=True, text=True)
+        if result.returncode != 0:
+            return f"Failed to terminate tmate session: {result.stderr}"
+        return f"Tmate session '{session_id}' terminated."
+    except Exception as e:
+        return f"Failed to terminate tmate session: {e}"
 
 def run_command(command):
     try:
