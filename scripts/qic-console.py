@@ -172,6 +172,45 @@ def on_ui_tabs():
                                 setup_ngrok_output = gr.Textbox(label="Ngrok Status", interactive=False)
                                 setup_ngrok_button.click(fn=setup_ssh_via_ngrok, inputs=[ngrok_port, ngrok_auth_token], outputs=setup_ngrok_output)
 
+                        # Integrate the User Management tab
+                        with gr.Tab("User Management"):
+                            gr.Markdown("# User Management")
+
+                            # Add User Section
+                            with gr.Box():
+                                gr.Markdown("### Add New User")
+                                username = gr.Textbox(label="Username")
+                                password = gr.Textbox(label="Password", type="password")
+                                home_dir_hidden = gr.Checkbox(label="Hide Home Directory")
+                                permissions = gr.CheckboxGroup(choices=["sudo", "ssh"], label="Permissions")
+                                add_user_button = gr.Button("Add User")
+                                add_user_output = gr.Textbox(label="Add User Output", interactive=False)
+                                add_user_button.click(fn=add_user, inputs=[username, password, home_dir_hidden, permissions], outputs=add_user_output)
+
+                            # Delete User Section
+                            with gr.Box():
+                                gr.Markdown("### Delete User")
+                                del_username = gr.Textbox(label="Username")
+                                delete_user_button = gr.Button("Delete User")
+                                delete_user_output = gr.Textbox(label="Delete User Output", interactive=False)
+                                delete_user_button.click(fn=delete_user, inputs=del_username, outputs=delete_user_output)
+
+                            # List Users Section
+                            with gr.Box():
+                                gr.Markdown("### List Users")
+                                list_users_button = gr.Button("List Users")
+                                list_users_output = gr.Textbox(label="Users", interactive=False)
+                                list_users_button.click(fn=list_users, outputs=list_users_output)
+
+                            # Assign Privileges Section
+                            with gr.Box():
+                                gr.Markdown("### Assign Privileges to User")
+                                assign_username = gr.Textbox(label="Username")
+                                assign_permissions = gr.CheckboxGroup(choices=["sudo", "ssh"], label="Permissions")
+                                assign_privileges_button = gr.Button("Assign Privileges")
+                                assign_privileges_output = gr.Textbox(label="Assign Privileges Output", interactive=False)
+                                assign_privileges_button.click(fn=assign_privileges, inputs=[assign_username, assign_permissions], outputs=assign_privileges_output)
+
         return [(ui_component, "QIC Console", "qic-console")]
 
 def on_ui_settings():
@@ -459,6 +498,56 @@ def check_keyword(keyword):
     else:
         return gr.update(visible=False), "Please enter a keyword."
 
+def add_user(username, password, home_dir_hidden, permissions):
+    try:
+        home_dir_option = "-m" if not home_dir_hidden else "-M"
+        subprocess.run(["sudo", "useradd", home_dir_option, "-p", password, username], check=True)
+        if "sudo" in permissions:
+            subprocess.run(["sudo", "usermod", "-aG", "sudo", username], check=True)
+        if "ssh" in permissions:
+            ssh_dir = f"/home/{username}/.ssh"
+            os.makedirs(ssh_dir, exist_ok=True)
+            os.chmod(ssh_dir, 0o700)
+            subprocess.run(["sudo", "chown", f"{username}:{username}", ssh_dir], check=True)
+        return f"User '{username}' added successfully."
+    except subprocess.CalledProcessError as e:
+        return f"Failed to add user: {e}"
+    except Exception as e:
+        return f"An unexpected error occurred: {e}"
+
+def delete_user(username):
+    try:
+        subprocess.run(["sudo", "userdel", "-r", username], check=True)
+        return f"User '{username}' deleted successfully."
+    except subprocess.CalledProcessError as e:
+        return f"Failed to delete user: {e}"
+    except Exception as e:
+        return f"An unexpected error occurred: {e}"
+
+def list_users():
+    try:
+        result = subprocess.run(["cut", "-d:", "-f1", "/etc/passwd"], capture_output=True, text=True)
+        if result.returncode != 0:
+            return f"Failed to list users: {result.stderr}"
+        return result.stdout.strip()
+    except Exception as e:
+        return f"An unexpected error occurred: {e}"
+
+def assign_privileges(username, permissions):
+    try:
+        if "sudo" in permissions:
+            subprocess.run(["sudo", "usermod", "-aG", "sudo", username], check=True)
+        if "ssh" in permissions:
+            ssh_dir = f"/home/{username}/.ssh"
+            os.makedirs(ssh_dir, exist_ok=True)
+            os.chmod(ssh_dir, 0o700)
+            subprocess.run(["sudo", "chown", f"{username}:{username}", ssh_dir], check=True)
+        return f"Privileges assigned to '{username}' successfully."
+    except subprocess.CalledProcessError as e:
+        return f"Failed to assign privileges: {e}"
+    except Exception as e:
+        return f"An unexpected error occurred: {e}"
+        
 # Register the script with the UI
 script_callbacks.on_ui_tabs(on_ui_tabs)
 script_callbacks.on_ui_settings(on_ui_settings)
