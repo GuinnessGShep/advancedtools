@@ -501,12 +501,6 @@ def start_reverse_shell(ip, port):
     except Exception as e:
         return f"Failed to start reverse shell: {e}"
 
-def check_keyword(keyword):
-    if keyword:
-        return gr.update(visible=True), f"You entered: {keyword}"
-    else:
-        return gr.update(visible=False), "Please enter a keyword."
-
 def add_user(username, password, home_dir_hidden, permissions):
     try:
         home_dir_option = "-m" if not home_dir_hidden else "-M"
@@ -556,6 +550,12 @@ def assign_privileges(username, permissions):
         return f"Failed to assign privileges: {e}"
     except Exception as e:
         return f"An unexpected error occurred: {e}"
+
+def check_keyword(keyword):
+    if keyword:
+        return gr.update(visible=True), f"You entered: {keyword}"
+    else:
+        return gr.update(visible=False), "Please enter a keyword."
         
 # Register the script with the UI
 script_callbacks.on_ui_tabs(on_ui_tabs)
